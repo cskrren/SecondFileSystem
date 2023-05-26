@@ -79,7 +79,7 @@ void FileManager::Creat()
 	{
 
 		this->Open1(pInode, File::FWRITE, 1);
-		pInode-> |= newACCMode;
+		pInode->i_mode |= newACCMode;
 	}
 }
 		/* 如果NameI()搜索到已经存在要创建的文件，则清空该文件（用算法ITrunc()）。UID没有改变
