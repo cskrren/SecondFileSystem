@@ -36,7 +36,6 @@ void FileManager::Open()
 	/* 没有找到相应的Inode */
 	if ( NULL == pInode )
 	{
-		// throw string("file not found");
 		return;
 	}
 	this->Open1(pInode, u.u_arg[1], 0);
@@ -124,7 +123,6 @@ void FileManager::Open1(Inode* pInode, int mode, int trf)
 	{
 		cout<<u.u_error<<endl;
 		cout<<"u_error in Open1"<<endl;
-		// throw string("u_error in Open1:"+to_string(u.u_error));
 		this->m_InodeTable->IPut(pInode);
 		return;
 	}
@@ -829,36 +827,21 @@ void FileManager::ChDir()
 	pInode = this->NameI(FileManager::NextChar,FileManager::OPEN);
 	if (NULL == pInode)
 	{
-<<<<<<< HEAD
-		cout << "path not found" << endl;
-		// throw string("path not found\n");
-=======
 		cout << "Path dose not exist" << endl;
->>>>>>> origin/dev_wjc
 		return;
 	}
 	/* 搜索到的文件不是目录文件 */
 	if ((pInode->i_mode & Inode::IFMT) !=Inode::IFDIR)
 	{
-<<<<<<< HEAD
-=======
 		cout << "Not a directory" << endl;
->>>>>>> origin/dev_wjc
 		u.u_error = ENOTDIR;
 		this->m_InodeTable->IPut(pInode);
-		cout << "target is not a directory" << endl;
-		// throw string("target is not a directory\n");
 		return;
 	}
 	if (this->Access(pInode,Inode::IEXEC))
 	{
-<<<<<<< HEAD
-=======
 		cout << "Permission denied" << endl;
->>>>>>> origin/dev_wjc
 		this->m_InodeTable->IPut(pInode);
-		cout << "access denied" << endl;
-		// throw string("access denied\n");
 		return;
 	}
 	this->m_InodeTable->IPut(u.u_cdir);

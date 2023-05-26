@@ -24,31 +24,21 @@ void DiskDriver::Initialize()
     int fd = open(devpath, O_RDWR);
     if (fd == -1)
     {
-        cout << "DiskDriver: diskfile not found, initializing..." << endl;
         fd = open(devpath, O_RDWR | O_CREAT, 0666);
         if (fd == -1)
         {
-<<<<<<< HEAD
-            cout << "DiskDriver: unable to create diskfile" << endl;
-=======
             printf("[error] DiskDriver Init Error: failed to create %s\n", devpath);
->>>>>>> origin/dev_wjc
             exit(-1);
         }
         // 对磁盘进行初始化
         this->init_img(fd);
-        Kernel::exist=false;
-        cout << "DiskDriver: init successfully" <<endl;
+        // cout << "[INFO] 磁盘初始化完毕." <<endl;
     }
     // 2. mmap
     mmap_img(fd);
     this->img_fd = fd;
-<<<<<<< HEAD
-    cout << "DiskDriver: mmap end" << endl;
-=======
     // english
     cout << "[info] DiskDriver Initialize Done." << endl;
->>>>>>> origin/dev_wjc
 }
 
 // 文件系统退出
@@ -59,11 +49,7 @@ void DiskDriver::quit()
     int r = fstat(this->img_fd, &st);
     if (r == -1)
     {
-<<<<<<< HEAD
-        printf("DiskDriver: unable to access the image file \n");
-=======
         printf("[error]fail to get img file info, file system exit\n");
->>>>>>> origin/dev_wjc
         close(this->img_fd);
         exit(-1);
     }
@@ -101,13 +87,10 @@ void DiskDriver::init_spb(SuperBlock& sb)
     sb.s_ronly = 0;
 }
 
-<<<<<<< HEAD
-=======
 /**
  * @brief init a data block
  * @param data 
  */
->>>>>>> origin/dev_wjc
 void DiskDriver::init_db(char* data)
 {
     struct
@@ -159,12 +142,9 @@ void DiskDriver::init_img(int fd)
     write(fd, &spb, sizeof(SuperBlock));
     write(fd, di_table, FileSystem::INODE_ZONE_SIZE * FileSystem::INODE_NUMBER_PER_SECTOR * sizeof(DiskInode));
     write(fd, datablock, FileSystem::DATA_ZONE_SIZE * 512);
-<<<<<<< HEAD
-=======
 
     // english
     printf("[info] Format Disk Done...\n");
->>>>>>> origin/dev_wjc
 }
 
 void DiskDriver::mmap_img(int fd)
@@ -174,11 +154,7 @@ void DiskDriver::mmap_img(int fd)
     int r = fstat(fd, &st);
     if (r == -1)
     {
-<<<<<<< HEAD
-        cout<< "DiskDriver: unable to access the image file \n";
-=======
         printf("[error] fail to get img file info, file system exit\n");
->>>>>>> origin/dev_wjc
         close(fd);
         exit(-1);
     }

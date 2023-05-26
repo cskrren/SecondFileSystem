@@ -21,11 +21,7 @@
 
 #define PORT 8888
 #define BACKLOG 128
-<<<<<<< HEAD
-#define MAX_PACKAGE_LENGTH 1024*16
-=======
 #define MAX_PACKAGE_LENGTH 1024
->>>>>>> origin/dev_wjc
 
 class RemoteServer : public ServerInterface
 {

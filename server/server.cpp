@@ -21,16 +21,8 @@
 #include "RemoteServer.h"
 #include "Services.h"
 #include "Kernel.h"
-<<<<<<< HEAD
-#include "cJSON.h"
 #define PORT 8888
 #define BACKLOG 128
-#define MAX_FILE_SIZE 960
-#define SEND_INTERVAL 1
-=======
-#define PORT 8888
-#define BACKLOG 128
->>>>>>> origin/dev_wjc
 
 RemoteServer server;
 
@@ -54,8 +46,6 @@ bool isNumber(const string &str)
 stringstream print_head()
 {
     stringstream send_str;
-<<<<<<< HEAD
-=======
     // send_str << "===============================================" << endl;
     // send_str << "||请在一行中依次输入需要调用的函数名称及其参数  ||" << endl;
     // send_str << "||open(char *name, int mode)                 ||" << endl;
@@ -74,7 +64,6 @@ stringstream print_head()
     // send_str << "||q/Q 退出文件系统                           ||" << endl
     //          << endl
     //          << endl;
->>>>>>> origin/dev_wjc
     send_str <<"---------------------------------------------------------------"<<endl;
     send_str << ">>>help menu<<<" << endl;
     send_str << "open [filename] [mode] : to open a file with selected mode" << endl;
@@ -82,11 +71,7 @@ stringstream print_head()
     send_str << "read [fd] [length] : to read the file with selected fd" << endl;
     send_str << "write [fd] [text] : to write text into the file with selected fd" << endl;
     send_str << "lseek [fd] [position] [ptrname] : to seek the file with selected fd" << endl;
-<<<<<<< HEAD
-    send_str << "create [filename] : to create a file" << endl;
-=======
     send_str << "create [filename] [mode] : to create a file with selected mode" << endl;
->>>>>>> origin/dev_wjc
     send_str << "rm [filename] : to remove a file" << endl;
     send_str << "ls : to list all files in current directory" << endl;
     send_str << "mkdir [dirname] : to create a directory" << endl;
@@ -122,76 +107,32 @@ public:
         this->fd = fd;
         this->username = username;
     };
-<<<<<<< HEAD
-
-    int send_command_to_json(const stringstream& send_str)
-    {
-        cJSON *command = cJSON_CreateObject();
-        cJSON_AddStringToObject(command, "command", send_str.str().c_str());
-        char *command_char = cJSON_Print(command);
-        string command_strs = command_char;
-        int numbytes = send(fd, command_strs.c_str(), command_strs.length(), 0);
-        cout << "[[ " << username << " ]] send " << numbytes << " bytes" << endl;
-        cout << "====message send====" << endl;
-        cout << command_strs << endl;
-        cout << "====================" << endl;
-        return numbytes;
-    }
-=======
->>>>>>> origin/dev_wjc
 };
 
 void *start_routine(void *ptr)
 {
     int fd = *(int *)ptr;
-<<<<<<< HEAD
-    char buf[MAX_PACKAGE_LENGTH];
-    int numbytes;
-    // numbytes=send(fd,"请输入用户名：",sizeof("请输入用户名："),0);
-    cJSON *welcome = cJSON_CreateObject();
-    cJSON_AddStringToObject(welcome, "command", "please type in the username:");
-    char *welcome_char = cJSON_Print(welcome);
-    string welcome_strs = welcome_char;
-
-    numbytes = server.send_message(welcome_strs, fd);
-=======
     char buf[1024];
     int numbytes;
     // numbytes=send(fd,"请输入用户名：",sizeof("请输入用户名："),0);
     numbytes = server.send_message("please type in the username:", fd);
->>>>>>> origin/dev_wjc
     if (numbytes == -1)
     {
         cout << "send() error" << endl;
         return (void *)NULL;
     }
 
-<<<<<<< HEAD
-    printf("进入用户线程，fd=%d\n", fd);
-
-    memset(buf, 0, sizeof(buf));
-    if ((numbytes = recv(fd, buf, MAX_PACKAGE_LENGTH, 0)) == -1)
-=======
     printf("enter a user thread fd=%d\n", fd);
 
     memset(buf, 0, sizeof(buf));
     if ((numbytes = recv(fd, buf, 1024, 0)) == -1)
->>>>>>> origin/dev_wjc
     {
         cout << ("recv() error\n");
         return (void *)NULL;
     }
-<<<<<<< HEAD
-    cJSON *root = cJSON_Parse(buf);
-    string username = cJSON_GetObjectItem(root, "command")->valuestring;
-    
-    
-    cout << "[info] 用户输入用户名：" << username << endl;
-=======
 
     string username = buf;
     cout << "[info] User name inputed" << username << endl;
->>>>>>> origin/dev_wjc
 
     sendU sd(fd, username);
 
@@ -203,22 +144,6 @@ void *start_routine(void *ptr)
 
     // send the welcome message
     welcome_str << tipswords;
-<<<<<<< HEAD
-    // make welcome str to a cjson object
-    // cJSON *welcome = cJSON_CreateObject();
-    // cJSON_AddStringToObject(welcome, "command", welcome_str.str().c_str());
-    // char *welcome_char = cJSON_Print(welcome);
-    // stringstream welcome_stream;
-    // welcome_stream << welcome_char;
-    sd.send_command_to_json(welcome_str);
-    bool first_output = true;
-    while (true)
-    {
-        char buf_recv[MAX_PACKAGE_LENGTH] = {0};
-
-        // 读取用户输入的命令行
-        if ((numbytes = recv(fd, buf_recv, MAX_PACKAGE_LENGTH, 0)) == -1)
-=======
     sd.send_(welcome_str);
     bool first_output = true;
     while (true)
@@ -227,35 +152,13 @@ void *start_routine(void *ptr)
 
         // 读取用户输入的命令行
         if ((numbytes = recv(fd, buf_recv, 1024, 0)) == -1)
->>>>>>> origin/dev_wjc
         {
             cout << "recv() error" << endl;
             Kernel::Instance().GetUserManager().Logout();
             return (void *)NULL;
         }
-<<<<<<< HEAD
-        cout<<"recv from client of "<<numbytes<<" bytes"<<endl;
-        cout<<"buf_recv : "<<buf_recv<<endl;
-        cJSON *root = cJSON_Parse(buf_recv);
-        cJSON *command = cJSON_GetObjectItem(root, "command");
-        if (command == NULL)
-        {
-            cout << "command is null" << endl;
-            if (numbytes <= 0)
-            {
-                cout << "[NETWORK] user " << username << " disconnect." << endl;
-                Kernel::Instance().GetUserManager().Logout();
-                return (void *)NULL;
-            }
-            printf("[NETWORK] send %d bytes\n", numbytes);
-            cJSON_Delete(root);
-            continue;
-        }
-        stringstream ss(command->valuestring);
-=======
         // 解析命令名称
         stringstream ss(buf_recv);
->>>>>>> origin/dev_wjc
         stringstream send_str;
 
         cout << "buf_recv : " << buf_recv << endl;
@@ -263,13 +166,6 @@ void *start_routine(void *ptr)
         ss >> api;
 
         cout << "api : " << api << endl;
-<<<<<<< HEAD
-        
-        if (api == "q" || api == "quit")
-        {
-            Kernel::Instance().GetUserManager().Logout();
-            send_str << "user logout\n";
-=======
         // if(api == "cd"){
         //     // string param1;
         //     // ss >> param1;
@@ -698,20 +594,12 @@ void *start_routine(void *ptr)
         {
             Kernel::Instance().GetUserManager().Logout();
             send_str << "User Logout\n";
->>>>>>> origin/dev_wjc
             sd.send_(send_str);
             break;
         }
 
-<<<<<<< HEAD
-        int code = 0;
-        send_str = Services::process(api, ss, code, root);
-        //check whether the root has "content"
-        
-=======
         int code;
         send_str = Services::process(api, ss, code);
->>>>>>> origin/dev_wjc
         if (code)
         {
             cout << "unrecognized command!" << endl;
@@ -722,12 +610,6 @@ void *start_routine(void *ptr)
         else
         {
             cout << "command finished!" << endl;
-<<<<<<< HEAD
-            if(cJSON_GetObjectItem(root,"content")!=NULL){
-                cout<<"the root has content"<<endl;
-            }
-=======
->>>>>>> origin/dev_wjc
         }
 
         // show the prompt with username and current directory
@@ -736,61 +618,6 @@ void *start_routine(void *ptr)
         send_str << tipswords;
 
         // 发送提示
-<<<<<<< HEAD
-        // cJSON_Delete(root);
-        cJSON *response = cJSON_CreateObject();
-        cJSON_AddStringToObject(response, "command", send_str.str().c_str());
-        char *response_char = cJSON_Print(response);
-        cout << "response_char : " << response_char << endl;
-        stringstream response_str;
-        response_str << response_char;
-        cout <<response_str.str()<< endl;
-
-        if(api=="download")
-        {
-            cout<<"attatch the file content"<<endl;
-            string file_content_json=cJSON_GetObjectItem(root,"content")->valuestring;
-            if(file_content_json=="")
-            {
-                cout<<"file content is null"<<endl;
-                return;
-            }
-            printf("file_content_json : %s\n",file_content_json.c_str());
-            int len = file_content_json.length();
-            int totalNum = (len + MAX_FILE_SIZE - 1)/MAX_FILE_SIZE;
-            int count = 0;
-            int remainNum = totalNum;
-            printf("len : %d\n",len);
-            printf("totalNum : %d\n",totalNum);
-            while(len>0)
-            {
-                cJSON *newresponse = cJSON_CreateObject();
-                remainNum = remainNum - 1; 
-                cJSON_AddStringToObject(newresponse, "content", file_content_json.substr(count,MAX_FILE_SIZE).c_str());
-                cJSON_AddStringToObject(newresponse, "remainNum", to_string(remainNum).c_str());
-                cJSON_AddStringToObject(newresponse, "totalNum", to_string(totalNum).c_str());
-                cJSON_AddStringToObject(newresponse, "command", "download");
-                char *newresponse_char = cJSON_Print(newresponse);  
-                stringstream newresponse_str;
-                newresponse_str << newresponse_char;
-                cout <<newresponse_str.str()<< endl;
-                numbytes = sd.send_(newresponse_str);
-                len-=MAX_FILE_SIZE;
-                count+=MAX_FILE_SIZE;
-                sleep(SEND_INTERVAL);
-            }
-        }
-        numbytes = sd.send_(response_str);
-        // if (numbytes <= 0)
-        // {
-        //     cout << "[NETWORK] user " << username << " disconnect." << endl;
-        //     Kernel::Instance().GetUserManager().Logout();
-        //     return (void *)NULL;
-        // }
-        printf("[NETWORK] send %d bytes\n", numbytes);
-        cJSON_Delete(root);
-    }
-=======
         numbytes = sd.send_(send_str);
         if (numbytes <= 0)
         {
@@ -809,13 +636,10 @@ void *start_routine(void *ptr)
         // }
     }
 
->>>>>>> origin/dev_wjc
     close(fd);
     return (void *)NULL;
 }
 
-<<<<<<< HEAD
-=======
 // int main()
 // {
 
@@ -874,7 +698,6 @@ void *start_routine(void *ptr)
 //     return 0;
 // }
 
->>>>>>> origin/dev_wjc
 int main()
 {
     // init the server

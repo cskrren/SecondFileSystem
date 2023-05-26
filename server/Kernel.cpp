@@ -13,8 +13,6 @@ UserManager g_UserManager;
 
 char returnBuf[256];
 
-bool Kernel::exist=true;
-
 // 构建与析构
 Kernel::Kernel()
 {
@@ -68,23 +66,8 @@ void Kernel::Initialize()
     us.u_cdir->i_flag &= (~Inode::ILOCK);
 	pthread_mutex_unlock(& us.u_cdir->mutex);
     strcpy(us.u_curdir, "/");
-    if(!exist){
-        string str="/usr";
-        Kernel::Instance().Sys_CreatDir(str);
-        str="/dev";
-        Kernel::Instance().Sys_CreatDir(str);
-        str="/bin";
-        Kernel::Instance().Sys_CreatDir(str);
-        str="/etc";
-        Kernel::Instance().Sys_CreatDir(str);
-        str="/tmp";
-        Kernel::Instance().Sys_CreatDir(str);
-        str="/home";
-        Kernel::Instance().Sys_CreatDir(str);
 
-    }
-
-    cout << "Kernel: initialize end" << endl;
+    printf("[info] 文件系统初始化完毕.\n");
 }
 
 void Kernel::Quit()

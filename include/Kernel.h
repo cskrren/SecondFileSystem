@@ -70,8 +70,6 @@ private:
     FileManager* m_FileManager;
     User* m_User;
     UserManager* m_UserManager;
-public:
-    static bool exist;
 };
 #endif
 

@@ -1,9 +1,5 @@
 #include "Kernel.h"
 #include "UserManager.h"
-#include <sys/types.h>
-#include <sys/syscall.h>
-#include <unistd.h>
-#include <stdio.h>
 
 UserManager::UserManager()
 {
@@ -34,12 +30,6 @@ bool UserManager::Login(string uname)
 {
     // 取得线程 id
     pthread_t pthread_id = pthread_self();
-    printf("pthread_id = %llu\n", pthread_id);
-
-    pid_t tid = syscall(SYS_gettid);
-    //输出tid
-    printf("tid = %d\n", tid);
-    
     // 检查该线程是否已登录
     if (user_addr.find(pthread_id) != user_addr.end())
     {
@@ -93,11 +83,7 @@ bool UserManager::Logout()
 {
     // 将系统更新至磁盘
     Kernel::Instance().Quit();
-<<<<<<< HEAD
-    
-=======
 
->>>>>>> origin/dev_wjc
     // 取得线程 id
     pthread_t pthread_id = pthread_self();
     // 检查该线程是否已登录

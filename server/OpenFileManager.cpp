@@ -89,15 +89,12 @@ void InodeTable::Initialize()
 	this->m_FileSystem = &Kernel::Instance().GetFileSystem();
 }
 
-<<<<<<< HEAD
-=======
 /**
  * @brief get the Inode from the InodeTable with the given inumber
  * 
  * @param inumber 
  * @return Inode* 
  */
->>>>>>> origin/dev_wjc
 Inode *InodeTable::IGet(int inumber)
 {
 	Inode *pInode;
@@ -111,44 +108,9 @@ Inode *InodeTable::IGet(int inumber)
 		{
 			pInode = &(this->m_Inode[index]);
 			/* 如果该内存Inode被上锁 */
-<<<<<<< HEAD
-			// printf("[IGET]上锁pInode: index=%d i_number=%d\n",index, pInode->i_number);
-			pInode->NFlock();
-			// if( pInode->i_flag & Inode::ILOCK )
-			//{
-			/* 增设IWANT标志，然后睡眠 */
-			// pInode->i_flag |= Inode::IWANT;
-
-			// u.u_procp->Sleep((unsigned long)&pInode, ProcessManager::PINOD);
-
-			/* 回到while循环，需要重新搜索，因为该内存Inode可能已经失效 */
-			// continue;
-			//}
-
-			/* 如果该内存Inode用于连接子文件系统，查找该Inode对应的Mount装配块 */
-			// if( pInode->i_flag & Inode::IMOUNT )
-			// {
-			// 	Mount* pMount = this->m_FileSystem->GetMount(pInode);
-			// 	if(NULL == pMount)
-			// 	{
-			// 		/* 没有找到 */
-			// 		Utility::Panic("No Mount Tab...");
-			// 	}
-			// 	else
-			// 	{
-			// 		/* 将参数设为子文件系统设备号、根目录Inode编号 */
-			// 		dev = pMount->m_dev;
-			// 		inumber = FileSystem::ROOTINO;
-			// 		/* 回到while循环，以新dev，inumber值重新搜索 */
-			// 		continue;
-			// 	}
-			// }
-
-=======
 			// wait to lock this inode
 			pInode->NFlock();
 
->>>>>>> origin/dev_wjc
 			/*
 			 * 程序执行到这里表示：内存Inode高速缓存中找到相应内存Inode，
 			 * 增加其引用计数，增设ILOCK标志并返回之

@@ -16,10 +16,6 @@ RemoteClient::~RemoteClient()
 
 void RemoteClient::send_message(const std::string &msg)
 {
-<<<<<<< HEAD
-    // cout<<"send message called"<<endl;
-=======
->>>>>>> origin/dev_wjc
     // check the status
     if (this->status == DISCONNECTED)
     {

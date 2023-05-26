@@ -2,10 +2,7 @@
 #include "Kernel.h"
 #include<string.h>
 #include<iostream>
-#include<unistd.h>
-
 using namespace std;
-
 BufferManager::BufferManager()
 {
 	//nothing to do here
@@ -85,25 +82,6 @@ Buf* BufferManager::GetBlk(int blkno){
 
 	// the wanted block is not in the freelist, try to assign an unlocked ManagerBlock to it
 	int success = false;
-<<<<<<< HEAD
-	while(!success){
-		for (bp = headbp->b_forw; bp != headbp; bp = bp->b_forw)
-		{
-			// 检查该buf是否上锁
-			if(pthread_mutex_trylock(&bp->buf_lock)==0){
-				success = true;
-				break;
-			}
-			printf("[DEBUG] buf已被锁，blkno=%d b_addr=%p\n", bp->b_blkno, bp->b_addr);
-		}
-	}
-	// if(success == false){
-	// 	bp = headbp->b_forw;
-	// 	printf("[INFO]系统缓存已用完，等待队首缓存解锁...\n");
-	// 	pthread_mutex_lock(&bp->buf_lock); // 等待第一个缓存块解锁。
-	// 	printf("[INFO]系统成功得到队首缓存块...\n");
-	// }
-=======
 	for (bp = headbp->b_forw; bp != headbp; bp = bp->b_forw)
 	{
 		// if a unlocked block is found
@@ -123,7 +101,6 @@ Buf* BufferManager::GetBlk(int blkno){
 		printf("[INFO]Succesfully get a Buffer Block..\n");
 	}
 	// if the content in this blokc is not synced with the disk(B_DELWRI), write it back!
->>>>>>> origin/dev_wjc
 	if (bp->b_flags&Buf::B_DELWRI)
 	{
 		this->Bwrite(bp);
@@ -132,10 +109,6 @@ Buf* BufferManager::GetBlk(int blkno){
 	}
 	// clean all the states of the selected block except the B_BUSY
 	bp->b_flags = Buf::B_BUSY;
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/dev_wjc
 	bp->b_blkno = blkno;
 	return bp;
 }
@@ -149,7 +122,6 @@ void BufferManager::Brelse(Buf* bp)
 	 * B_DELWRI表示虽然将该控制块释放到自由队列里面，但是有可能还没有些到磁盘上。
 	 * B_DONE则是指该缓存的内容正确地反映了存储在或应存储在磁盘上的信息 
 	 */
-	// sleep(2);
 	bp->b_flags &= ~(Buf::B_WANTED | Buf::B_BUSY | Buf::B_ASYNC);
 	pthread_mutex_unlock(&bp->buf_lock);
 	//printf("[DEBUG] 释放缓存块 b")
@@ -188,10 +160,8 @@ void BufferManager::Bwrite(Buf *bp)
 {
 	bp->b_flags &= ~(Buf::B_READ | Buf::B_DONE | Buf::B_ERROR | Buf::B_DELWRI);
 	bp->b_wcount = BufferManager::BUFFER_SIZE;		/* 512字节 */
-	cout<<"start bwrite"<<endl;
-	// sleep(10);
+
 	memcpy(&this->p[BufferManager::BUFFER_SIZE * bp->b_blkno], bp->b_addr, BufferManager::BUFFER_SIZE);
-	cout<<"end bwrite"<<endl;
 	this->Brelse(bp);
 
 	return;
