@@ -1843,7 +1843,7 @@ CJSON_PUBLIC(int) cJSON_GetArraySize(const cJSON *array)
         child = child->next;
     }
 
-    /* FIXME: Can overflow here. Cannot be fixed without breaking the API */
+    /* FIXME: Can overflow here. Cannot be fixed without breaking the current_command */
 
     return (int)size;
 }

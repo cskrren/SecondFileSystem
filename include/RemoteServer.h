@@ -44,7 +44,7 @@ public:
 
 private:
     struct sigaction action;
-    int listen_fd = 0;
+    int socket_fd = 0;
     std::map<pthread_t, int *> client_fd_map;
     int sin_size;
     void *(*process_function)(void *);

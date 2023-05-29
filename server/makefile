@@ -13,7 +13,6 @@ HEADER = $(wildcard $(INC_PATH)*.h)
 TAR= $(BUILD_PATH)FileSystemServer
 
 all:$(TAR)
-	
 
 $(TAR):$(OBJ)
 	$(CC) -I$(INC_PATH) -o $@  $^ -lpthread

@@ -95,10 +95,10 @@ Buf* BufferManager::GetBlk(int blkno){
 	// all the block in the free list is already locked
 	if(success == false){
 		bp = headbp->b_forw;
-		printf("[INFO]System Buffer ran out, wait the first block unlock...\n");
+		printf("->System Buffer ran out, wait the first block unlock...\n");
 		// wait for the first buffer block in the free buffer list to unlock
 		pthread_mutex_lock(&bp->buf_lock); 
-		printf("[INFO]Succesfully get a Buffer Block..\n");
+		printf("->Succesfully get a Buffer Block..\n");
 	}
 	// if the content in this blokc is not synced with the disk(B_DELWRI), write it back!
 	if (bp->b_flags&Buf::B_DELWRI)
@@ -248,17 +248,6 @@ void BufferManager::GetError(Buf* bp)
 	return;
 }
 
-// void BufferManager::NotAvail(Buf *bp)
-// {
-// 	X86Assembly::CLI();		/* spl6();  UNIX V6的做法 */
-// 	/* 从自由队列中取出 */
-// 	bp->av_back->av_forw = bp->av_forw;
-// 	bp->av_forw->av_back = bp->av_back;
-// 	/* 设置B_BUSY标志 */
-// 	bp->b_flags |= Buf::B_BUSY;
-// 	X86Assembly::STI();
-// 	return;
-// }
 
 Buf* BufferManager::InCore( int blkno)
 {

@@ -100,4 +100,8 @@ public:
 	int m_Count;	/* 当前还剩余的读、写字节数量 */
 };
 
+
+
+// fd 类型定义
+using FD=unsigned int;
 #endif

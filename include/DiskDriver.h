@@ -1,6 +1,12 @@
 #pragma once
 #include "FileSystem.h"
 #include "BufferManager.h"
+#define DISKFILE_PATH "diskfile.img"
+
+struct block_table{
+    int free_top; 
+    int free_block_table[SuperBlock::GROUP_BLOCK_NUMBER];
+};
 
 class DiskDriver
 {
@@ -9,16 +15,17 @@ DiskDriver();
 ~DiskDriver();
 
 void Initialize();
-void quit();
+void uninstall();
+
+bool exist;
 
 private:
-    void init_spb(SuperBlock &sb);
-    void init_db(char* data);
-    void init_img(int fd);
-    void mmap_img(int fd);
-private:
-    const char* devpath = "diskfile.img";
-    int img_fd; // devpath的fd，文件系统打开时 open，关闭时 close.
-    BufferManager *m_BufferManager; /* FileSystem类需要缓存管理模块(BufferManager)提供的接口 */
+    void write_super_block(SuperBlock &sb);
+    void write_disk_block(char* data);
+    void disk_formatting(int fd);
+    void disk_mapping(int fd);
+    int disk_mapped_fd;
+    BufferManager *m_BufferManager; 
+
 
 };

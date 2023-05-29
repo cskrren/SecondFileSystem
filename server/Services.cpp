@@ -1,5 +1,6 @@
 #include "Services.h"
 #include "base64.h"
+#include "Systemcall.h"
 #include <vector>
 #define MAX_FILE_SIZE 960
 #define SEND_INTERVAL 1
@@ -23,278 +24,266 @@ map<string, stringstream (Services::*)(stringstream &,cJSON*)> Services::command
 
 stringstream Services::open_service(stringstream &ss,cJSON* root)
 {
-    string param1;
-    string param2;
-    stringstream send_str;
-    ss >> param1 >> param2;
-    if (param1 == "" || param2 == "")
+    string open_filename;
+    string open_mode;
+    stringstream ret;
+    ss >> open_filename >> open_mode;
+    if (open_filename == "" || open_mode == "")
     {
-        send_str << "open [filename] [mode]\n";
-        send_str << "invalid arguments" << endl;
-        return send_str;
+        ret << "open [filename] [mode]\n";
+        ret << "invalid arguments" << endl;
+        return ret;
     }
-    string fpath = param1;
-    if (!Utility::is_number(param2))
+    string fpath = open_filename;
+    if (!Utility::is_number(open_mode))
     {
-        send_str << "[mode] invalid" << endl;
-        return send_str;
+        ret << "[mode] invalid" << endl;
+        return ret;
     }
-    int mode = atoi(param2.c_str());
+    int mode = atoi(open_mode.c_str());
 
-    // 调用
+    
     FD fd;
-    fd = Kernel::Instance().Sys_Open(fpath, mode);
-    // try{
-    //     fd = Kernel::Instance().Sys_Open(fpath, mode);
-    // }catch(string& e){
-    //     send_str<<e<<endl;
-    //     return send_str;
-    // }
-    // if(fd==4294967295U){
-    //     send_str<<"[ERROR] open file failed"<<endl;
-    //     return send_str;
-    // }
+    fd = Systemcall::Sys_Open(fpath, mode);
     if (Kernel::Instance().GetUser().u_error != 0)
     {
-        send_str << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
-        return send_str;
+        ret << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
+        return ret;
     }
-    // 打印结果
-    send_str << "The file opened successfully\n"
+    
+    ret << "The file opened successfully\n"
              << "open file [fd] = " << fd << endl;
-    return send_str;
+    return ret;
 }
 
 stringstream Services::close_service(stringstream &ss,cJSON* root)
 {
-    string p1_fd;
-    stringstream send_str;
-    ss >> p1_fd;
-    if (p1_fd == "")
+    string openfile_index;
+    stringstream ret;
+    ss >> openfile_index;
+    if (openfile_index == "")
     {
-        send_str << "close [fd]\n";
-        send_str << "invalid arguments" << endl;
-        return send_str;
+        ret << "close [fd]\n";
+        ret << "invalid arguments" << endl;
+        return ret;
     }
-    if (!Utility::is_number(p1_fd))
+    if (!Utility::is_number(openfile_index))
     {
-        send_str << "[fd] should be a number" << endl;
-        return send_str;
+        ret << "[fd] should be a number" << endl;
+        return ret;
     }
-    int fd = atoi(p1_fd.c_str());
+    int fd = atoi(openfile_index.c_str());
     if (fd < 0)
     {
-        send_str << "[fd] should be positive" << endl;
-        return send_str;
+        ret << "[fd] should be positive" << endl;
+        return ret;
     }
-    // 调用 API
-    int ret = Kernel::Instance().Sys_Close(fd);
+    
+    int close_return = Systemcall::Sys_Close(fd);
     if (Kernel::Instance().GetUser().u_error != 0)
     {
-        send_str << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
-        return send_str;
+        ret << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
+        return ret;
     }
-    send_str << "The file opened successfully\n"
-             << "close file [fd] = " << ret << endl;
-    return send_str;
+    ret << "The file opened successfully\n"
+             << "close file [fd] = " << close_return << endl;
+    return ret;
 }
 
 stringstream Services::read_service(stringstream &ss,cJSON* root)
 {
-    string p1_fd;
-    string p2_size;
-    stringstream send_str;
-    ss >> p1_fd >> p2_size;
-    if (p1_fd == "" || p2_size == "")
+    string openfile_index;
+    string read_size;
+    stringstream ret;
+    ss >> openfile_index >> read_size;
+    if (openfile_index == "" || read_size == "")
     {
-        send_str << "read [fd] [length]\n";
-        send_str << "invalid arguments" << endl;
+        ret << "read [fd] [length]\n";
+        ret << "invalid arguments" << endl;
 
-        return send_str;
+        return ret;
     }
-    if (!Utility::is_number(p1_fd))
+    if (!Utility::is_number(openfile_index))
     {
-        send_str << "[fd] should be a number" << endl;
+        ret << "[fd] should be a number" << endl;
 
-        return send_str;
+        return ret;
     }
-    if (!Utility::is_number(p2_size))
+    if (!Utility::is_number(read_size))
     {
-        send_str << "[length] should be a number" << endl;
+        ret << "[length] should be a number" << endl;
 
-        return send_str;
+        return ret;
     }
-    int fd = atoi(p1_fd.c_str());
+    int fd = atoi(openfile_index.c_str());
     if (fd < 0)
     {
-        send_str << "[fd] should be positive" << endl;
+        ret << "[fd] should be positive" << endl;
 
-        return send_str;
+        return ret;
     }
-    int size = atoi(p2_size.c_str());
+    int size = atoi(read_size.c_str());
     if (size <= 0 || size > 1024)
     {
-        send_str << "[length] valid range:(0,1024]" << endl;
+        ret << "[length] valid range:(0,1024]" << endl;
 
-        return send_str;
+        return ret;
     }
-    // 调用 API
+    
     char buf[1025];
     memset(buf, 0, sizeof(buf));
-    int ret = Kernel::Instance().Sys_Read(fd, size, 1025, buf);
+    int read_return = Systemcall::Sys_Read(fd, size, 1025, buf);
     if (Kernel::Instance().GetUser().u_error != 0)
     {
-        send_str << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
-        return send_str;
+        ret << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
+        return ret;
     }
-    // 结果返回
-    send_str << "successfully read " << ret << " bytes from file [fd] = " << fd << endl;
-    send_str << "content:" << endl;
-    send_str << buf << endl;
-    return send_str;
+    
+    ret << "successfully read " << read_return << " bytes from file of fd: " << fd << endl;
+    ret << "content:" << endl;
+    ret << buf << endl;
+    return ret;
 }
 
 stringstream Services::write_service(stringstream &ss,cJSON* root)
 {
-    string p1_fd = "";
-    string p2_content = "";
-    stringstream send_str;
-    ss >> p1_fd >> p2_content;
-    if (p1_fd == "")
+    string openfile_index = "";
+    string write_content = "";
+    stringstream ret;
+    ss >> openfile_index >> write_content;
+    if (openfile_index == "")
     {
-        send_str << "write [fd] [text]\n";
-        send_str << "invalid arguments" << endl;
-        return send_str;
+        ret << "write [fd] [text]\n";
+        ret << "invalid arguments" << endl;
+        return ret;
     }
-    if (!Utility::is_number(p1_fd))
+    if (!Utility::is_number(openfile_index))
     {
-        send_str << "[fd] should be a number" << endl;
-        return send_str;
+        ret << "[fd] should be a number" << endl;
+        return ret;
     }
-    int fd = atoi(p1_fd.c_str());
+    int fd = atoi(openfile_index.c_str());
     if (fd < 0)
     {
-        send_str << "[fd] should be positive" << endl;
-        return send_str;
+        ret << "[fd] should be positive" << endl;
+        return ret;
     }
-    if (p2_content.length() > 1024)
+    if (write_content.length() > 1024)
     {
-        send_str << "[text] is too long" << endl;
-        return send_str;
+        ret << "[text] is too long" << endl;
+        return ret;
     }
     char buf[1025];
     memset(buf, 0, sizeof(buf));
-    strcpy(buf, p2_content.c_str());
-    int size = p2_content.length();
-    // 调用 API
-    int ret = Kernel::Instance().Sys_Write(fd, size, 1024, buf);
-    // 打印结果
+    strcpy(buf, write_content.c_str());
+    int size = write_content.length();
+    int write_return = Systemcall::Sys_Write(fd, size, 1024, buf);
     if (Kernel::Instance().GetUser().u_error != 0)
     {
-        send_str << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
-        return send_str;
+        ret << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
+        return ret;
     }
-    send_str << "successfully write " << ret << " bytes to file [fd] = " << fd << endl;
-    send_str << "content:" << endl;
-    send_str << buf << endl;
-    return send_str;
+    ret << "successfully write " << write_return << " bytes to file [fd] = " << fd << endl;
+    ret << "content:" << endl;
+    ret << buf << endl;
+    return ret;
 }
 
 stringstream Services::lseek_service(stringstream &ss,cJSON* root)
 {
-    string fd, position, ptrname;
-    stringstream send_str;
-    ss >> fd >> position >> ptrname;
-    if (fd == "" || position == "" || ptrname == "")
+    string fd, position, locate_mode;
+    stringstream ret;
+    ss >> fd >> position >> locate_mode;
+    if (fd == "" || position == "" || locate_mode == "")
     {
-        send_str << "lseek [fd] [position] [ptrname]";
-        send_str << "invalid arguments" << endl;
-        return send_str;
+        ret << "lseek [fd] [position] [locate_mode]";
+        ret << "invalid arguments" << endl;
+        return ret;
     }
     if (!Utility::is_number(fd))
     {
-        send_str << "[fd] invalid" << endl;
-        return send_str;
+        ret << "[fd] invalid" << endl;
+        return ret;
     }
     int fd_int = atoi(fd.c_str());
     if (!Utility::is_number(position))
     {
-        send_str << "[position] invalid" << endl;
-        return send_str;
+        ret << "[position] invalid" << endl;
+        return ret;
     }
     int position_int = atoi(position.c_str());
-    if (!Utility::is_number(ptrname))
+    if (!Utility::is_number(locate_mode))
     {
-        send_str << "[ptrname] invalid" << endl;
-        return send_str;
+        ret << "[locate_mode] invalid" << endl;
+        return ret;
     }
-    int ptrname_int = atoi(ptrname.c_str());
+    int locate_mode_int = atoi(locate_mode.c_str());
     User &u = Kernel::Instance().GetUser();
     u.u_error = NOERROR;
     u.u_ar0[0] = 0;
     u.u_ar0[1] = 0;
     u.u_arg[0] = fd_int;
     u.u_arg[1] = position_int;
-    u.u_arg[2] = ptrname_int;
+    u.u_arg[2] = locate_mode_int;
     FileManager &fimanag = Kernel::Instance().GetFileManager();
     fimanag.Seek();
     if (Kernel::Instance().GetUser().u_error != 0)
     {
-        send_str << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
-        return send_str;
+        ret << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
+        return ret;
     }
-    send_str << "successfully seek file [fd] = " << fd_int << " to position " << position_int << "in ptrname " << ptrname_int << endl;
-    send_str << "new position: " << u.u_ar0[0] << endl;
-    return send_str;
+    ret << "successfully seek file [fd] = " << fd_int << " to position " << position_int << "in locate_mode " << locate_mode_int << endl;
+    ret << "new position: " << u.u_ar0[0] << endl;
+    return ret;
 }
 
 stringstream Services::create_service(stringstream &ss,cJSON* root)
 {
-    string filename;
-    stringstream send_str;
-    ss >> filename;
-    if (filename == "")
+    string create_filename;
+    stringstream ret;
+    ss >> create_filename;
+    if (create_filename == "")
     {
-        send_str << "mkfile [filepath]";
-        send_str << "invalid arguments" << endl;
-        return send_str;
+        ret << "mkfile [filepath]";
+        ret << "invalid arguments" << endl;
+        return ret;
     }
     User &u = Kernel::Instance().GetUser();
     u.u_error = NOERROR;
     u.u_ar0[0] = 0;
     u.u_ar0[1] = 0;
-    char filename_char[512];
-    strcpy(filename_char, filename.c_str());
-    u.u_dirp = filename_char;
+    char create_filename_char[512];
+    strcpy(create_filename_char, create_filename.c_str());
+    u.u_dirp = create_filename_char;
     u.u_arg[1] = Inode::IRWXU;
     FileManager &fimanag = Kernel::Instance().GetFileManager();
     fimanag.Creat();
     if (Kernel::Instance().GetUser().u_error != 0)
     {
-        send_str << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
-        return send_str;
+        ret << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
+        return ret;
     }
-    send_str << "successfully create file " << filename << endl;
-    send_str << "inode number: " << u.u_ar0[0] << endl;
-    return send_str;
+    ret << "successfully create file " << create_filename << endl;
+    ret << "inode number: " << u.u_ar0[0] << endl;
+    return ret;
 }
 
 stringstream Services::cd_service(stringstream &ss,cJSON* root)
 {
-    stringstream send_str;
-    string param1;
-    ss >> param1;
-    if (param1 == "")
+    stringstream ret;
+    string cd_path;
+    ss >> cd_path;
+    if (cd_path == "")
     {
-        send_str << "cd [fpath]";
-        send_str << "invalid arguments" << endl;
-        return send_str;
+        ret << "cd [fpath]";
+        ret << "invalid arguments" << endl;
+        return ret;
     }
-    // 调用
+    
     User &u = Kernel::Instance().GetUser();
     u.u_error = NOERROR;
     char dirname[300] = {0};
-    strcpy(dirname, param1.c_str());
+    strcpy(dirname, cd_path.c_str());
     u.u_dirp = dirname;
     u.u_arg[0] = (unsigned long long)(dirname);
     FileManager &fimanag = Kernel::Instance().GetFileManager();
@@ -303,165 +292,164 @@ stringstream Services::cd_service(stringstream &ss,cJSON* root)
 
     if (Kernel::Instance().GetUser().u_error != 0)
     {
-        send_str << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
-        return send_str;
+        ret << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
+        return ret;
     }
-    // 打印结果
-    send_str << "successfully change directory to " << param1 << endl;
-    send_str << "current directory: " << u.u_cdir->i_number << endl;
-    return send_str;
+    
+    ret << "successfully change directory to " << cd_path << endl;
+    ret << "current directory: " << u.u_cdir->i_number << endl;
+    return ret;
 }
 
 stringstream Services::rm_service(stringstream &ss,cJSON* root)
 {
-    string filename;
-    stringstream send_str;
-    ss >> filename;
-    if (filename == "")
+    string rm_filename;
+    stringstream ret;
+    ss >> rm_filename;
+    if (rm_filename == "")
     {
-        send_str << "rm [filename]";
-        send_str << "invalid arguments" << endl;
-        return send_str;
+        ret << "rm [rm_filename]";
+        ret << "invalid arguments" << endl;
+        return ret;
     }
     User &u = Kernel::Instance().GetUser();
     u.u_error = NOERROR;
     u.u_ar0[0] = 0;
     u.u_ar0[1] = 0;
-    char filename_char[512];
-    strcpy(filename_char, filename.c_str());
-    u.u_dirp = filename_char;
+    char rm_filename_char[512];
+    strcpy(rm_filename_char, rm_filename.c_str());
+    u.u_dirp = rm_filename_char;
     FileManager &fimanag = Kernel::Instance().GetFileManager();
     fimanag.UnLink();
     if (Kernel::Instance().GetUser().u_error != 0)
     {
-        send_str << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
-        return send_str;
+        ret << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
+        return ret;
     }
-    send_str << "successfully remove file " << filename << endl;
-    return send_str;
+    ret << "successfully remove file " << rm_filename << endl;
+    return ret;
 }
 
 stringstream Services::ls_service(stringstream &ss,cJSON* root)
 {
-    stringstream send_str;
+    stringstream ret;
     User &u = Kernel::Instance().GetUser();
     u.u_error = NOERROR;
     string cur_path = u.u_curdir;
-    FD fd = Kernel::Instance().Sys_Open(cur_path, (File::FREAD));
+    FD fd = Systemcall::Sys_Open(cur_path, (File::FREAD));
     // error handle
     if (Kernel::Instance().GetUser().u_error != 0)
     {
-        send_str << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
-        return send_str;
+        ret << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
+        return ret;
     }
-    send_str << " cur_path:" << cur_path << endl;
+    ret << " cur_path:" << cur_path << endl;
     char buf[33] = {0};
     while (1)
     {
-        if (Kernel::Instance().Sys_Read(fd, 32, 33, buf) == 0)
+        if (Systemcall::Sys_Read(fd, 32, 33, buf) == 0)
             break;
         else
         {
-            // send_str << "cur_path:" << cur_path << endl << "buf:" << buf;
             DirectoryEntry *mm = (DirectoryEntry *)buf;
             if (mm->m_ino == 0)
                 continue;
-            send_str << mm->m_name << endl;
+            ret << mm->m_name << endl;
 
             memset(buf, 0, 32);
         }
     }
-    Kernel::Instance().Sys_Close(fd);
-    send_str << "ls success" << endl;
-    return send_str;
+    Systemcall::Sys_Close(fd);
+    ret << "ls success" << endl;
+    return ret;
 }
 
 stringstream Services::mkdir_service(stringstream &ss,cJSON* root)
 {
-    stringstream send_str;
-    string path;
-    ss >> path;
-    if (path == "")
+    stringstream ret;
+    string dir_path;
+    ss >> dir_path;
+    if (dir_path == "")
     {
-        send_str << "mkdir [dirname]";
-        send_str << "invalid arguments" << endl;
-        return send_str;
+        ret << "mkdir [dirname]";
+        ret << "invalid arguments" << endl;
+        return ret;
     }
-    send_str << "doing mkdir " << path << endl;
-    int ret = Kernel::Instance().Sys_CreatDir(path);
+    ret << "doing mkdir " << dir_path << endl;
+    int create_return = Systemcall::Sys_CreatDir(dir_path);
     if (Kernel::Instance().GetUser().u_error != 0)
     {
-        send_str << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
-        return send_str;
+        ret << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
+        return ret;
     }
-    send_str << "mkdir success" << endl;
-    send_str << "inode number: " << ret << endl;
-    return send_str;
+    ret << "mkdir success" << endl;
+    ret << "inode number: " << create_return << endl;
+    return ret;
 }
 
 stringstream Services::cat_service(stringstream &ss,cJSON* root)
 {
-    string p1_fpath;
-    stringstream send_str;
-    ss >> p1_fpath;
-    if (p1_fpath == "")
+    string cat_path;
+    stringstream ret;
+    ss >> cat_path;
+    if (cat_path == "")
     {
-        send_str << "cat [filename]\n";
-        send_str << "invalid arguments" << endl;
-        return send_str;
+        ret << "cat [filename]\n";
+        ret << "invalid arguments" << endl;
+        return ret;
     }
-    string fpath = p1_fpath;
+    string fpath = cat_path;
     // Open
-    FD fd = Kernel::Instance().Sys_Open(fpath, 0x1);
+    FD fd = Systemcall::Sys_Open(fpath, 0x1);
 
     // error handle
     if (Kernel::Instance().GetUser().u_error != 0)
     {
-        send_str << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
-        return send_str;
+        ret << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
+        return ret;
     }
 
     if (fd < 0)
     {
-        send_str << "cannot open file." << endl;
-        return send_str;
+        ret << "cannot open file." << endl;
+        return ret;
     }
     // Read
     char buf[257];
     while (true)
     {
         memset(buf, 0, sizeof(buf));
-        int ret = Kernel::Instance().Sys_Read(fd, 256, 256, buf);
-        if (ret <= 0)
+        int read_ret = Systemcall::Sys_Read(fd, 256, 256, buf);
+        if (read_ret <= 0)
         {
             break;
         }
-        send_str << buf;
+        ret << buf;
     }
     // add endl
-    send_str<<endl;
+    ret<<endl;
     // Close
-    Kernel::Instance().Sys_Close(fd);
-    send_str << "cat success" << endl;
-    return send_str;
+    Systemcall::Sys_Close(fd);
+    ret << "cat success" << endl;
+    return ret;
 }
 
 void Services::save_file()
 {
-    int fd = Kernel::Instance().Sys_Open(uploadFileName, 0x1 | 0x2);
+    int fd = Systemcall::Sys_Open(uploadFileName, 0x1 | 0x2);
     if (fd < 0)
     {
         cout << "cannot open file." << endl;
         return;
     }
-    // 开始拷贝，一次 256 字节
+    //start copying file using buf
     totalStr = base64_decode(totalStr);
     int all_read_num = totalStr.length();
     int all_write_num = 0;
     while (true)
     {
         int current_upload_num=min(buf_size,(int)totalStr.length() - all_write_num);
-        int write_num = Kernel::Instance().Sys_Write(fd, current_upload_num, buf_size, (void*)(totalStr.c_str()+all_write_num));
+        int write_num = Systemcall::Sys_Write(fd, current_upload_num, buf_size, (void*)(totalStr.c_str()+all_write_num));
         all_write_num += write_num;
         printf("write_num:%d\n",write_num);
         if(write_num<=0 || all_write_num >= totalStr.length())
@@ -469,12 +457,12 @@ void Services::save_file()
             break;
         }
     }
-    Kernel::Instance().Sys_Close(fd);
+    Systemcall::Sys_Close(fd);
 }
 
 stringstream Services::upload_service(stringstream &ss, cJSON* root)
 {
-    stringstream send_str;
+    stringstream ret;
     if(!cJSON_HasObjectItem(root,"fileNum")){
         string p2_ifpath = cJSON_GetObjectItem(root,"filename")->valuestring;
         string file_content_raw = cJSON_GetObjectItem(root,"content")->valuestring;
@@ -482,33 +470,33 @@ stringstream Services::upload_service(stringstream &ss, cJSON* root)
         string totalNumStr = cJSON_GetObjectItem(root,"totalNum")->valuestring;
         int remainNum = atoi(remainNumStr.c_str());
         int totalNum = atoi(totalNumStr.c_str());
-        Kernel::Instance().Sys_Creat(p2_ifpath, 0x1 | 0x2);
-        int ifd = Kernel::Instance().Sys_Open(p2_ifpath, 0x1 | 0x2);
+        Systemcall::Sys_Creat(p2_ifpath, 0x1 | 0x2);
+        int ifd = Systemcall::Sys_Open(p2_ifpath, 0x1 | 0x2);
         // error
         if (Kernel::Instance().GetUser().u_error != 0)
         {
-            send_str << "error occur when open file" << endl;
-            send_str << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
-            return send_str;
+            ret << "error occur when open file" << endl;
+            ret << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
+            return ret;
         }
         if (ifd < 0)
         {
             // close(ofd);
-            send_str << "[ERROR] failed to open file:" << p2_ifpath << endl;
-            return send_str;
+            ret << "[ERROR] failed to open file:" << p2_ifpath << endl;
+            return ret;
         }
-        // 开始拷贝，一次 256 字节
+        // start copying file using buf
         int all_read_num = file_content_raw.length();
         int all_write_num = 0;
         while (true)
         {
             int current_upload_num=min(buf_size,(int)file_content_raw.length() - all_write_num);
-            int write_num = Kernel::Instance().Sys_Write(ifd, current_upload_num, buf_size, (void*)(file_content_raw.c_str()+all_write_num));
+            int write_num = Systemcall::Sys_Write(ifd, current_upload_num, buf_size, (void*)(file_content_raw.c_str()+all_write_num));
             all_write_num += write_num;
             printf("write_num:%d\n",write_num);
             if(write_num<=0)
             {
-                send_str << "[ERROR] failed to write:" << p2_ifpath<<endl;
+                ret << "[ERROR] failed to write:" << p2_ifpath<<endl;
                 break;
             }
             if(all_write_num >= file_content_raw.length())
@@ -516,18 +504,18 @@ stringstream Services::upload_service(stringstream &ss, cJSON* root)
                 break;
             }
         }
-        send_str << "Bytes read:" << all_read_num
+        ret << "Bytes read:" << all_read_num
                 << "Bytes written:" << all_write_num 
                 << "Remain Packets:" << remainNum
                 << "Total Packets:" << totalNum << endl;
-        Kernel::Instance().Sys_Close(ifd);
+        Systemcall::Sys_Close(ifd);
         totalStr += file_content_raw;
         if(remainNum==0)
         {
             printf(totalStr.c_str());
             save_file();
         }
-        return send_str;    
+        return ret;    
     }
     else{
         string p1_ofpath;
@@ -537,58 +525,51 @@ stringstream Services::upload_service(stringstream &ss, cJSON* root)
         printf("p2_ifpath:%s\n",p2_ifpath.c_str());
         if (p1_ofpath == "" || p2_ifpath == "")
         {
-            send_str << "upload [localpath] [remotepath]\n";
-            send_str << "invalid arguments" << endl;
-            return send_str;
+            ret << "upload [localpath] [remotepath]\n";
+            ret << "invalid arguments" << endl;
+            return ret;
         }
         string fileNumStr = cJSON_GetObjectItem(root,"fileNum")->valuestring;
         int fileNum = atoi(fileNumStr.c_str());
         cout<<"receive fileNum:"<<fileNum<<endl;
         uploadFileName = p2_ifpath;
         totalStr = "";
-        Kernel::Instance().Sys_Creat(p2_ifpath, 0x1 | 0x2);
+        Systemcall::Sys_Creat(p2_ifpath, 0x1 | 0x2);
         // error
         if (Kernel::Instance().GetUser().u_error != 0)
         {
-            send_str << "error occur when create file" << endl;
-            send_str << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
-            return send_str;
+            ret << "error occur when create file" << endl;
+            ret << get_error_msg(Kernel::Instance().GetUser().u_error) << endl;
+            return ret;
         } 
-        return send_str;
+        return ret;
     }
 }
 
 stringstream Services::download_service(stringstream &ss,cJSON* root)
 {
-    string p1_ifpath;
-    string p2_ofpath;
-    stringstream send_str;
-    ss >> p1_ifpath >> p2_ofpath;
-    if (p1_ifpath == "" || p2_ofpath == "")
+    string path_from;
+    string path_to;
+    stringstream ret;
+    ss >> path_from >> path_to;
+    if (path_from == "" || path_to == "")
     {
-        send_str << "download [remotepath] [localpath]\n";
-        send_str << "invalid arguments" << endl;
-        return send_str;
+        ret << "download [remotepath] [localpath]\n";
+        ret << "invalid arguments" << endl;
+        return ret;
     }
-    // 创建外部文件
-    // int ofd = open(p2_ofpath.c_str(), O_WRONLY | O_TRUNC | O_CREAT, 777); // 截断写入方式打开外部文件
+    // open inner file
     if(Kernel::Instance().GetUser().u_error!=0){
-        send_str<<get_error_msg(Kernel::Instance().GetUser().u_error)<<endl;
-        return send_str;
+        ret<<get_error_msg(Kernel::Instance().GetUser().u_error)<<endl;
+        return ret;
     }
-    // if (ofd < 0)
-    // {
-    //     send_str << "[ERROR] failed to create file:" << p2_ofpath << endl;
-    //     return send_str;
-    // }
-    // 打开内部文件
-    cout<<"try to open file:"<<p1_ifpath<<endl;
-    int ifd = Kernel::Instance().Sys_Open(p1_ifpath, 0x1 | 0x2);
+    cout<<"try to open file:"<<path_from<<endl;
+    int ifd = Systemcall::Sys_Open(path_from, 0x1 | 0x2);
     if (ifd < 0)
     {
         // close(ofd);
-        send_str << "[ERROR] failed to open file:" << p1_ifpath << endl;
-        return send_str;
+        ret << "[ERROR] failed to open file:" << path_from << endl;
+        return ret;
     }
     char buf[2048];
     int all_read_num = 0;
@@ -599,7 +580,7 @@ stringstream Services::download_service(stringstream &ss,cJSON* root)
     {
         memset(buf, 0, sizeof(buf));
         int read_num =
-            Kernel::Instance().Sys_Read(ifd, buf_size, buf_size, buf);
+            Systemcall::Sys_Read(ifd, buf_size, buf_size, buf);
         if (read_num <= 0)
         {
             break;
@@ -617,7 +598,7 @@ stringstream Services::download_service(stringstream &ss,cJSON* root)
     cout<<"all_read_num:"<<all_read_num<<endl;
     cout<<"write file content to cjson:"<<file_content_encode<<endl;
     cJSON_AddStringToObject(root,"content",file_content_encode.c_str());
-    return send_str;
+    return ret;
 }
 
 std::string Services::get_error_msg(int error_code)
@@ -747,8 +728,6 @@ std::stringstream Services::process(const std::string &command, std::stringstrea
 {
     if (command_service_map.find(command) != command_service_map.end())
     {
-        
-        // printf("11111");
         code = 0;
         Kernel::Instance().GetUser().u_error = 0;
         stringstream ret=(Instance().*(command_service_map[command]))(ss,root);
@@ -757,8 +736,8 @@ std::stringstream Services::process(const std::string &command, std::stringstrea
     }
     else
     {
-        std::stringstream send_str;
-        send_str << "[SERVICES] command "
+        std::stringstream ret;
+        ret << "[SERVICES] command "
                  << "\"" << command << "\""
                  << " not found" << std::endl;
 
@@ -766,6 +745,6 @@ std::stringstream Services::process(const std::string &command, std::stringstrea
              << "\"" << command << "\""
              << "not found" << endl;
         code = -1;
-        return send_str;
+        return ret;
     }
 }

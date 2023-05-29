@@ -3,16 +3,16 @@
 
 UserManager::UserManager()
 {
-    // 清空
+    // clean all the user space
     for (int i = 0; i < USER_N; ++i)
     {
-        (this->pusers)[i] = NULL;
+        (this->user_pool)[i] = NULL;
     }
-    this->user_addr.clear();
-    // 分配一个给系统主进程
+    this->map_thread_user.clear();
+    // alloc a space for the first user(root)
     pthread_t pid = pthread_self();
-    pusers[0] = (User*)malloc(sizeof(User));
-    user_addr[pid] = 0;
+    user_pool[0] = (User*)malloc(sizeof(User));
+    map_thread_user[pid] = 0;
 
 }
 
@@ -20,27 +20,29 @@ UserManager::~UserManager()
 {
     for (int i = 0; i < USER_N; ++i)
     {
-        if ((this->pusers)[i] != NULL)
-            free((this->pusers)[i]);
+        if ((this->user_pool)[i] != NULL)
+            free((this->user_pool)[i]);
     }
 }
 
-// 用户登录
+/**
+ * @brief User Login
+*/
 bool UserManager::Login(string uname)
 {
-    // 取得线程 id
+    // get thread id
     pthread_t pthread_id = pthread_self();
-    // 检查该线程是否已登录
-    if (user_addr.find(pthread_id) != user_addr.end())
+    // check if the thread has already login
+    if (map_thread_user.find(pthread_id) != map_thread_user.end())
     {
         printf("[ERROR] Thread %llu has already login\n", pthread_id);
         return false;
     }
-    // 寻找空闲的pusers指针
+    // get a free space for user
     int i;
     for (i = 0; i < USER_N; ++i)
     {
-        if (pusers[i] == NULL)
+        if (user_pool[i] == NULL)
         {
             break;
         }
@@ -50,63 +52,67 @@ bool UserManager::Login(string uname)
         printf("[ERROR] UserManager has no free space\n");
         return false;
     }
-    // i 为空闲索引
-    pusers[i] = (User *)malloc(sizeof(User));
-    if (pusers[i] == NULL)
+    // i is the free space
+    user_pool[i] = (User *)malloc(sizeof(User));
+    if (user_pool[i] == NULL)
     {
         printf("[ERROR] UserManager malloc failed\n");
         return false;
     }
-    // 建立pid与addr的关联
-    user_addr[pthread_id] = i;
-    pusers[i]->u_uid = 0;
-    printf("[INFO] Thread %llu login successed.\n", pthread_id);
-    // 设置 User 结构的初始值
-    // 1. 关联根目录
-    pusers[i]->u_cdir = g_InodeTable.IGet(FileSystem::ROOTINO);
-    pusers[i]->u_cdir->NFrele();
-    strcpy(pusers[i]->u_curdir, "/");
-    // 2. 尝试创建家目录
-    Kernel::Instance().Sys_CreatDir(uname);
-    // 3. 转到家目录
-    pusers[i]->u_error = NOERROR;
+    // link the thread id and the user
+    map_thread_user[pthread_id] = i;
+    user_pool[i]->u_uid = 0;
+    printf("-> Thread %llu login successed.\n", pthread_id);
+    // set the user's current directory
+    // find the root index first
+    user_pool[i]->u_cdir = g_InodeTable.IGet(FileSystem::ROOTINO);
+    user_pool[i]->u_cdir->NFrele();
+    strcpy(user_pool[i]->u_curdir, "/");
+    // try to create the user's home directory
+    Systemcall::Sys_CreatDir(uname);
+    // turn to the home directory
+    user_pool[i]->u_error = NOERROR;
     char dirname[512] = {0};
     strcpy(dirname, uname.c_str());
-    pusers[i]->u_dirp = dirname;
-    pusers[i]->u_arg[0] = (unsigned long long)(dirname);
+    user_pool[i]->u_dirp = dirname;
+    user_pool[i]->u_arg[0] = (unsigned long long)(dirname);
     FileManager &fimanag = Kernel::Instance().GetFileManager();
     fimanag.ChDir();
     return true;
 }
-// 用户登出
+
+/**
+ * @brief User Logout
+*/
 bool UserManager::Logout()
 {
-    // 将系统更新至磁盘
+    // sync the information in Critial Section
     Kernel::Instance().Quit();
 
-    // 取得线程 id
+    // get thread id
     pthread_t pthread_id = pthread_self();
-    // 检查该线程是否已登录
-    if (user_addr.find(pthread_id) == user_addr.end())
+    if (map_thread_user.find(pthread_id) == map_thread_user.end())
     {
         printf("[ERROR] Thread %d has not login\n", pthread_id);
         return false;
     }
-    int i = user_addr[pthread_id];
-    free(pusers[i]);
-    user_addr.erase(pthread_id);
-    printf("[INFO] Thread %d Logout successd.\n", pthread_id);
+    int i = map_thread_user[pthread_id];
+    free(user_pool[i]);
+    map_thread_user.erase(pthread_id);
+    printf("-> Thread %d Logout successd.\n", pthread_id);
     return true;
 }
 
-// 得到当前线程的User结构
+/**
+ * @brief Get the User Structure of the current thread
+*/
 User *UserManager::GetUser()
 {
     pthread_t pthread_id = pthread_self();
-    if (user_addr.find(pthread_id) == user_addr.end())
+    if (map_thread_user.find(pthread_id) == map_thread_user.end())
     {
         printf("[ERROR] Could not get the User Structure of thread %d\n", pthread_id);
         exit(1);
     }
-    return pusers[user_addr[pthread_id]];
+    return user_pool[map_thread_user[pthread_id]];
 }

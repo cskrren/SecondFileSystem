@@ -23,7 +23,6 @@
 #include "Kernel.h"
 #include "cJSON.h"
 #define PORT 8888
-#define BACKLOG 128
 #define MAX_FILE_SIZE 960
 #define SEND_INTERVAL 1
 
@@ -31,20 +30,6 @@ RemoteServer server;
 
 using namespace std;
 
-void handle_pipe(int sig)
-{
-    // 不做任何处理即可
-}
-
-bool isNumber(const string &str)
-{
-    for (char const &c : str)
-    {
-        if (std::isdigit(c) == 0)
-            return false;
-    }
-    return true;
-}
 
 stringstream print_head()
 {
@@ -70,27 +55,27 @@ stringstream print_head()
 
     return send_str;
 }
-class sendU
+class thread_user_struct
 {
 private:
-    int fd;
-    string username;
+    int socket_id;
+    string current_user_str;
 
 public:
-    int send_(const stringstream &send_str)
+    int send_plaint_string(const stringstream &send_str)
     {
         // cout<<send_str.str()<<endl;
-        int numbytes = send(fd, send_str.str().c_str(), send_str.str().length(), 0);
-        cout << "[[ " << username << " ]] send " << numbytes << " bytes" << endl;
+        int numbytes = send(socket_id, send_str.str().c_str(), send_str.str().length(), 0);
+        cout << "[[ " << current_user_str << " ]] send " << numbytes << " bytes" << endl;
         cout << "====message send====" << endl;
         cout << send_str.str() << endl;
         cout << "====================" << endl;
         return numbytes;
     };
-    sendU(int fd, string username)
+    thread_user_struct(int socket_id, string current_user_str)
     {
-        this->fd = fd;
-        this->username = username;
+        this->socket_id = socket_id;
+        this->current_user_str = current_user_str;
     };
 
     int send_command_to_json(const stringstream& send_str)
@@ -99,8 +84,8 @@ public:
         cJSON_AddStringToObject(command, "command", send_str.str().c_str());
         char *command_char = cJSON_Print(command);
         string command_strs = command_char;
-        int numbytes = send(fd, command_strs.c_str(), command_strs.length(), 0);
-        cout << "[[ " << username << " ]] send " << numbytes << " bytes" << endl;
+        int numbytes = send(socket_id, command_strs.c_str(), command_strs.length(), 0);
+        cout << "[[ " << current_user_str << " ]] send " << numbytes << " bytes" << endl;
         cout << "====message send====" << endl;
         cout << command_strs << endl;
         cout << "====================" << endl;
@@ -113,7 +98,6 @@ void *start_routine(void *ptr)
     int fd = *(int *)ptr;
     char buf[MAX_PACKAGE_LENGTH];
     int numbytes;
-    // numbytes=send(fd,"请输入用户名：",sizeof("请输入用户名："),0);
     cJSON *welcome = cJSON_CreateObject();
     cJSON_AddStringToObject(welcome, "command", "please type in the username:");
     char *welcome_char = cJSON_Print(welcome);
@@ -126,7 +110,7 @@ void *start_routine(void *ptr)
         return (void *)NULL;
     }
 
-    printf("进入用户线程，fd=%d\n", fd);
+    cout<<"start thread to serve at fd=%d"<<fd<<endl;
 
     memset(buf, 0, sizeof(buf));
     if ((numbytes = recv(fd, buf, MAX_PACKAGE_LENGTH, 0)) == -1)
@@ -138,11 +122,11 @@ void *start_routine(void *ptr)
     string username = cJSON_GetObjectItem(root, "command")->valuestring;
     
     
-    cout << "[info] 用户输入用户名：" << username << endl;
+    cout << "->" << username<<" logged in" << endl;
 
-    sendU sd(fd, username);
+    thread_user_struct sd(fd, username);
 
-    // 初始化用户User结构和目录
+    // login the user using username and pthread_self
     Kernel::Instance().GetUserManager().Login(username);
     // init the prompt
     stringstream welcome_str = print_head();
@@ -160,18 +144,18 @@ void *start_routine(void *ptr)
     bool first_output = true;
     while (true)
     {
-        char buf_recv[MAX_PACKAGE_LENGTH] = {0};
+        char from_socket[MAX_PACKAGE_LENGTH] = {0};
 
-        // 读取用户输入的命令行
-        if ((numbytes = recv(fd, buf_recv, MAX_PACKAGE_LENGTH, 0)) == -1)
+        // read the command from client
+        if ((numbytes = recv(fd, from_socket, MAX_PACKAGE_LENGTH, 0)) == -1)
         {
             cout << "recv() error" << endl;
             Kernel::Instance().GetUserManager().Logout();
             return (void *)NULL;
         }
         cout<<"recv from client of "<<numbytes<<" bytes"<<endl;
-        cout<<"buf_recv : "<<buf_recv<<endl;
-        cJSON *root = cJSON_Parse(buf_recv);
+        cout<<"from_socket : "<<from_socket<<endl;
+        cJSON *root = cJSON_Parse(from_socket);
         cJSON *command = cJSON_GetObjectItem(root, "command");
         if (command == NULL)
         {
@@ -189,22 +173,22 @@ void *start_routine(void *ptr)
         stringstream ss(command->valuestring);
         stringstream send_str;
 
-        cout << "buf_recv : " << buf_recv << endl;
-        string api;
-        ss >> api;
+        cout << "from_socket : " << from_socket << endl;
+        string current_command;
+        ss >> current_command;
 
-        cout << "api : " << api << endl;
+        cout << "parse command: " << current_command << endl;
         
-        if (api == "q" || api == "quit")
+        if (current_command == "q" || current_command == "quit")
         {
             Kernel::Instance().GetUserManager().Logout();
             send_str << "user logout\n";
-            sd.send_(send_str);
+            sd.send_plaint_string(send_str);
             break;
         }
 
         int code = 0;
-        send_str = Services::process(api, ss, code, root);
+        send_str = Services::process(current_command, ss, code, root);
         //check whether the root has "content"
         
         if (code)
@@ -227,7 +211,6 @@ void *start_routine(void *ptr)
 
         send_str << tipswords;
 
-        // 发送提示
         // cJSON_Delete(root);
         cJSON *response = cJSON_CreateObject();
         cJSON_AddStringToObject(response, "command", send_str.str().c_str());
@@ -237,7 +220,7 @@ void *start_routine(void *ptr)
         response_str << response_char;
         cout <<response_str.str()<< endl;
 
-        if(api=="download")
+        if(current_command=="download")
         {
             cout<<"attatch the file content"<<endl;
             string file_content_json=cJSON_GetObjectItem(root,"content")->valuestring;
@@ -265,19 +248,13 @@ void *start_routine(void *ptr)
                 stringstream newresponse_str;
                 newresponse_str << newresponse_char;
                 cout <<newresponse_str.str()<< endl;
-                numbytes = sd.send_(newresponse_str);
+                numbytes = sd.send_plaint_string(newresponse_str);
                 len-=MAX_FILE_SIZE;
                 count+=MAX_FILE_SIZE;
                 sleep(SEND_INTERVAL);
             }
         }
-        numbytes = sd.send_(response_str);
-        // if (numbytes <= 0)
-        // {
-        //     cout << "[NETWORK] user " << username << " disconnect." << endl;
-        //     Kernel::Instance().GetUserManager().Logout();
-        //     return (void *)NULL;
-        // }
+        numbytes = sd.send_plaint_string(response_str);
         printf("[NETWORK] send %d bytes\n", numbytes);
         cJSON_Delete(root);
     }

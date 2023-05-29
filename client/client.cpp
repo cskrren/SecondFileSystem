@@ -187,7 +187,7 @@ void receive_message_handler(const string& message)
 {
     // record whether the last command is download
 
-    cout<<"[INFO] receive message"<<endl;
+    cout<<"-> receive message"<<endl;
     cout<<message<<endl;
 
     // cout<<message;
@@ -203,12 +203,12 @@ void receive_message_handler(const string& message)
                 string content = cJSON_GetObjectItem(display, "content")->valuestring;
                 string remainNumStr = cJSON_GetObjectItem(display, "remainNum")->valuestring;
                 string totalNumStr = cJSON_GetObjectItem(display, "totalNum")->valuestring;
-                cout<<"[INFO] total Package:"<<totalNumStr<<endl;
-                cout<<"[INFO] remain Package:"<<remainNumStr<<endl;
+                cout<<"-> total Package:"<<totalNumStr<<endl;
+                cout<<"-> remain Package:"<<remainNumStr<<endl;
                 int remainNum = stoi(remainNumStr);
                 int totalNum = stoi(totalNumStr);
                 string file_name = last_down_load_filename.substr(0, last_down_load_filename.find_last_of(".")) + "_"+to_string(totalNum-remainNum)+".tmp";
-                cout<<"[INFO] write to file:"<<file_name<<endl;
+                cout<<"-> write to file:"<<file_name<<endl;
                 int fd = open(file_name.c_str(), O_RDWR|O_CREAT, 0666);
                 string file_content_str_decode = content;
                 int ret = write(fd, file_content_str_decode.c_str(), file_content_str_decode.size());

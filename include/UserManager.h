@@ -25,10 +25,10 @@ public:
     User* GetUser();
 
 public:
-    // 一个动态的索引表
-    std::map<pthread_t, int> user_addr;
+    // connect between thread and user
+    std::map<pthread_t, int> map_thread_user;
     // User array
-    User* pusers[USER_N]; 
+    User* user_pool[USER_N]; 
 };
 
 #endif

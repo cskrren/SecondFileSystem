@@ -64,8 +64,6 @@ void FileSystem::LoadSuperBlock()
 		printf("[error] Load SuperBlock Error....!\n");
 	}
 
-	// g_spb.s_flock = 0;
-	// g_spb.s_ilock = 0;
 	g_spb.s_ronly = 0;
 	time_t cur_time;
 	time(&cur_time);
@@ -81,8 +79,7 @@ SuperBlock* FileSystem::GetFS()
 }
 
 /*
- * @comment 将SuperBlock对象的内存副本更新到
- * 存储设备的SuperBlock中去
+ * @brief: Update the SuperBlock to the disk
  */
 void FileSystem::Update()
 {
@@ -91,22 +88,19 @@ void FileSystem::Update()
 	Buf* pBuf;
 
 
-	// 对 Update 函数进行上锁
-
-	/* 同步SuperBlock到磁盘 */
-
+	// sync the SuperBlock to the disk
 	
 	/* 如果该SuperBlock内存副本没有被修改，直接管理inode和空闲盘块被上锁或该文件系统是只读文件系统 */
 	if(sb->s_fmod == 0 || sb->s_ronly != 0)//sb->s_ilock != 0 || sb->s_flock != 0 ||
 	{
-		printf("[info] FileSystem::Update is already updated\n");
+		printf("-> FileSystem::Update is already updated\n");
 		return;
 	}
 
 	// update the SuperBlock in the disk
 	pthread_mutex_lock(&sb->s_ilock);
 	pthread_mutex_lock(&sb->s_flock);
-	cout << "[Update] sb->s_flock Locked" <<endl;
+	cout << "[Update] Free Block Table Locked" <<endl;
 	/* 清SuperBlock修改标志 */
 	sb->s_fmod = 0;
 	// update the SuperBlock last update time
@@ -169,7 +163,6 @@ Inode* FileSystem::IAlloc()
 	if(sb->s_ninode <= 0)
 	{
 		/* 空闲Inode索引表上锁 */
-		//sb->s_ilock++;
 		pthread_mutex_lock(&sb->s_ilock);
 		/* 外存Inode编号从0开始，这不同于Unix V6中外存Inode从1开始编号 */
 		ino = -1;
@@ -224,9 +217,6 @@ Inode* FileSystem::IAlloc()
 				break;
 			}
 		}
-		
-		// sb->s_ilock = 0;
-		// Kernel::Instance().GetProcessManager().WakeUpAll((unsigned long)&sb->s_ilock);
 		
 		/* 如果在磁盘上没有搜索到任何可用外存Inode，返回NULL */
 		if(sb->s_ninode <= 0)
@@ -284,15 +274,6 @@ void FileSystem::IFree(int number)
 	SuperBlock* sb;
 
 	sb = this->GetFS();	/* 获取相应设备的SuperBlock内存副本 */
-	
-	/* 
-	 * 如果超级块直接管理的空闲Inode表上锁，
-	 * 则释放的外存Inode散落在磁盘Inode区中。
-	 */
-	// if(sb->s_ilock)
-	// {
-	// 	return;
-	// }
 
 	/* 
 	 * 如果超级块直接管理的空闲外存Inode超过100个，
@@ -320,8 +301,6 @@ Buf* FileSystem::Alloc()
 	SuperBlock* sb;
 	Buf* pBuf;
 	User& u = Kernel::Instance().GetUser();
-	//pthread_mutex_t p_mutex;
-	//pthread_mutex_init(&p_mutex, NULL);
 	/* 获取SuperBlock对象的内存副本 */
 	sb = this->GetFS();
 
@@ -330,15 +309,9 @@ Buf* FileSystem::Alloc()
 	 * 正在操作空闲磁盘块索引表，因而对其上锁。这通常
 	 * 是由于其余进程调用Free()或Alloc()造成的。
 	 */
-	//pthread_mutex_lock(&p_mutex);
-	pthread_mutex_lock(&sb->s_flock);//s_mfree--的写操作需要保护
-	cout << "[Alloc] sb->s_flock locked" <<endl;
-	// while(sb->s_flock)
-	// {
-	// 	/* 进入睡眠直到获得该锁才继续 */
-	// 	u.u_procp->Sleep((unsigned long)&sb->s_flock, ProcessManager::PINOD);
-	// }
 
+	pthread_mutex_lock(&sb->s_flock);//s_mfree--的写操作需要保护
+	cout << "[Alloc] Free Block Table locked" <<endl;
 	/* 从索引表“栈顶”获取空闲磁盘块编号 */
 	blkno = sb->s_free[--sb->s_nfree];
 
@@ -371,7 +344,6 @@ Buf* FileSystem::Alloc()
 		 * 此处加锁，因为以下要进行读盘操作，有可能发生进程切换，
 		 * 新上台的进程可能对SuperBlock的空闲盘块索引表访问，会导致不一致性。
 		 */
-		//sb->s_flock++;
 
 		/* 读入该空闲磁盘块 */
 		pBuf = this->m_BufferManager->Bread(blkno);
@@ -389,12 +361,11 @@ Buf* FileSystem::Alloc()
 		this->m_BufferManager->Brelse(pBuf);
 
 		/* 解除对空闲磁盘块索引表的锁，唤醒因为等待锁而睡眠的进程 */
-		// sb->s_flock = 0;
 	}
 
 	// we use pthread to simulate the process sleep and wake up
 	pthread_mutex_unlock(&sb->s_flock);
-	cout << "[Alloc] sb->s_flock unlocked!" << endl;
+	cout << "[Alloc] Free Block Table unlocked!" << endl;
 	/* 普通情况下成功分配到一空闲磁盘块 */
 	pBuf = this->m_BufferManager->GetBlk(blkno);	/* 为该磁盘块申请缓存 */
 	this->m_BufferManager->ClrBuf(pBuf);	/* 清空缓存中的数据 */
@@ -410,7 +381,6 @@ void FileSystem::Free(int blkno)
 {
 	SuperBlock* sb;
 	Buf* pBuf;
-	//User& u = Kernel::Instance().GetUser();
 
 	sb = this->GetFS();
 	sb->s_fmod = 1;
@@ -420,12 +390,7 @@ void FileSystem::Free(int blkno)
 	 * 的修改仅进行了一半，就更新到磁盘SuperBlock去
 	 */
 	pthread_mutex_lock(&sb->s_flock);
-	cout << "[Free] sb->s_flock locked" <<endl;
-	/* 如果空闲磁盘块索引表被上锁，则睡眠等待解锁 */
-	// while(sb->s_flock)
-	// {
-	// 	u.u_procp->Sleep((unsigned long)&sb->s_flock, ProcessManager::PINOD);
-	// }
+	cout << "[Free] Free Block Table locked" <<endl;
 
 	/* 检查释放磁盘块的合法性 */
 	if(this->BadBlock(sb, blkno))
@@ -465,14 +430,12 @@ void FileSystem::Free(int blkno)
 		sb->s_nfree = 0;
 		/* 将存放空闲盘块索引表的“当前释放盘块”写入磁盘，即实现了空闲盘块记录空闲盘块号的目标 */
 		this->m_BufferManager->Bwrite(pBuf);
-		// 解锁
-		// sb->s_flock = 0;
 	}
 	sb->s_free[sb->s_nfree++] = blkno;	/* SuperBlock中记录下当前释放盘块号 */
 	sb->s_fmod = 1;
 	// unlock the SuperBlock
 	pthread_mutex_unlock(&sb->s_flock);
-	cout << "[Free] sb->s_flock unlocked!" << endl;
+	cout << "[Free] Free Block Table unlocked!" << endl;
 }
 
 // if the block is bad, return 1
